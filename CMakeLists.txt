@@ -45,11 +45,11 @@ install(TARGETS thruster_manager
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME})
-  
+
 # allow using the class in another package
 install(DIRECTORY include/ DESTINATION include/)
 
 ament_export_libraries(thruster_manager)
 ament_export_include_directories(include)
-  
+
 ament_package()

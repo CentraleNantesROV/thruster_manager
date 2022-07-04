@@ -8,14 +8,14 @@
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
-  
+
   <depend>geometry_msgs</depend>
   <depend>rclcpp</depend>
   <depend>sensor_msgs</depend>
   <depend>urdfdom</depend>
   <depend>tf2_ros</depend>
   <depend>thruster_manager_msgs</depend>
-  
+
   <export>
     <build_type>ament_cmake</build_type>
   </export>

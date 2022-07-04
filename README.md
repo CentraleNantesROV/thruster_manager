@@ -28,7 +28,7 @@ The mapping between body wrench and propeller thrust needs to identify which joi
 - `tam.thruster_prefix` (`string`): will use all joints that begins with the prefix
 - `tam.use_gz_plugin` (`bool`): will use all joints that have a `gazebo::systems::Thruster` plugin in the URDF
 
-If no hint is given (default) then the parser will assume all revolute and continuous joints of the model are thrusters. 
+If no hint is given (default) then the parser will assume all revolute and continuous joints of the model are thrusters.
 
 ### Thrust constraints
 
@@ -40,7 +40,7 @@ These constraints assume all thrusters have the same properties
 
 If both `min` and `max` thrusts are given then the overall thrusts are scaled down to fit in the constraints.
 
-If the deadzone is given *and* the allocation matrix has a non-null kernel then a basic iterative algorithm will try to apply the desired wrench while avoiding thrusts between `[-deadzone, +deadzone]`. 
+If the deadzone is given *and* the allocation matrix has a non-null kernel then a basic iterative algorithm will try to apply the desired wrench while avoiding thrusts between `[-deadzone, +deadzone]`.
 
 ### Input / output (ThrusterManagerNode only)
 
@@ -63,4 +63,4 @@ The two `parseRobotDescription` methods return the names of the thruster joints,
 
 The core method is `Eigen::VectorXd solveWrench(const Vector6d &wrench)` that finds the overall thruts (return value) from the desired wrench.
 
-Controllers can also use the `Vector6d maxWrench()` function to use it in anti-windup approaches, if any.
+Controllers can also use the `maxWrench()` function to use it in anti-windup approaches, if any. This method returns a `Eigen::Vector` of dimension 6 with the maximum wrench on all components : x, y, z, roll, pitch, yaw.

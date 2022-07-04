@@ -21,6 +21,7 @@ lib/
 ros_installed/
 CMakeLists*pre*
 __pycache__/
+
 # Packages #
 ############
 # it's better to unpack these files and commit the raw source
@@ -68,5 +69,6 @@ Thumbs.db
 *.vrb
 *.synctex.gz*
 *.tex.backup
+.directory
 
 !.gitignore

@@ -8,7 +8,7 @@ using namespace std;
 std::vector<std::string> ThrusterManager::parseRobotDescription(rclcpp::Node* node,
                                                                 const string &control_frame)
 {
-  assert (node != nullptr);  
+  assert (node != nullptr);
   const auto thrusters = node->declare_parameter<vector<string>>("tam.thrusters",vector<string>{});
   const auto thruster_prefix = node->declare_parameter<string>("tam.thruster_prefix", "");
   const auto use_gz = node->declare_parameter("tam.use_gz_plugin", true);
@@ -94,7 +94,7 @@ std::vector<std::string> ThrusterManager::parseRobotDescription(rclcpp::Node* no
 
 ThrusterManager::Vector6d ThrusterManager::maxWrench() const
 {
-  ThrusterManager::Vector6d wrench;
+  Vector6d wrench;
   wrench.setZero();
   const auto thrust{std::max(fmax, -fmin)};
 
@@ -108,7 +108,7 @@ ThrusterManager::Vector6d ThrusterManager::maxWrench() const
 
 
 Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
-{ 
+{
   static const auto qr{tam.colPivHouseholderQr()};
   Eigen::VectorXd thrust{qr.solve(wrench)};
   if(const auto scale{scaleFactor(thrust)}; scale > 1)
