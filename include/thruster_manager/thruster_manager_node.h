@@ -12,7 +12,6 @@ namespace thruster_manager
 
 class ThrusterManagerNode : public rclcpp::Node
 {
-
   using Float64 = std_msgs::msg::Float64;
   using JointState = sensor_msgs::msg::JointState;
   using Wrench = geometry_msgs::msg::Wrench;

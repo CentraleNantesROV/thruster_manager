@@ -14,8 +14,8 @@ ThrusterManagerNode::ThrusterManagerNode(rclcpp::NodeOptions options)
   : Node("thruster_manager", options)
 {
 
-  const auto pub_js{declare_parameter("publish_joint_state", true,  description("If the command is to be published as joint state"))};
-  const auto pub_gz{declare_parameter("publish_gz_command", false, description("If the command should be published as Float64 for Gazebo thruster plugin"))};
+  const auto pub_js{declare_parameter("publish_joint_state", true,  description("If the command should be published as joint state"))};
+  const auto pub_gz{declare_parameter("publish_gz_command", true, description("If the command should be published as Float64 (Gazebo thruster plugin)"))};
   const auto sub_stamped{declare_parameter("subscribe_stamped", false,
                                            description("If the node should expect WrenchStamped messages instead of Wrench"))};
   const auto control_frame{declare_parameter<std::string>("control_frame", "base_link")};

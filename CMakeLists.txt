@@ -5,7 +5,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE Release)
 
 # find dependencies
 find_package(ament_cmake REQUIRED)
@@ -23,12 +23,11 @@ if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
 endif()
 
-set(CMAKE_BUILD_TYPE Release)
 
 # thruster manager as a library / composition node
 add_library(thruster_manager SHARED src/thruster_manager.cpp src/thruster_manager_node.cpp)
 target_include_directories(thruster_manager PUBLIC include ${EIGEN3_INCLUDE_DIRS})
-ament_target_dependencies(thruster_manager rclcpp urdf tf2_ros sensor_msgs geometry_msgs kdl_parser)
+ament_target_dependencies(thruster_manager rclcpp urdf tf2_ros sensor_msgs geometry_msgs kdl_parser rclcpp_components)
 
 if(NOT WIN32)
   ament_environment_hooks(
@@ -47,7 +46,9 @@ install(TARGETS thruster_manager
   RUNTIME DESTINATION lib/${PROJECT_NAME})
 
 # allow using the class in another package
-install(DIRECTORY include/ DESTINATION include/)
+# legacy include dir + nested since Humble
+install(DIRECTORY include/ DESTINATION include)
+install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
 
 ament_export_libraries(thruster_manager)
 ament_export_include_directories(include)

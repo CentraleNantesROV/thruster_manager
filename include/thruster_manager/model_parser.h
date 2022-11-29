@@ -2,6 +2,7 @@
 #define THRUSTER_MANAGER_MODEL_PARSER_H
 
 #include <urdf/model.h>
+#include "thruster_link.h"
 #include <kdl_parser/kdl_parser.hpp>
 #include <kdl/chainfksolverpos_recursive.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -26,7 +27,7 @@ struct ModelParser
     const auto rsp_node(std::make_shared<rclcpp::Node>("thruster_manager_rsp"));
 
     const auto rsp_param_srv = std::make_shared<rclcpp::SyncParametersClient>
-                               (rsp_node, "robot_state_publisher");
+        (rsp_node, "robot_state_publisher");
 
     rsp_param_srv->wait_for_service();
 
@@ -70,47 +71,45 @@ struct ModelParser
       {return joint.second->type == urdf::Joint::REVOLUTE
             || joint.second->type == urdf::Joint::CONTINUOUS;});
     }
-    else
+    else if(use_gz_plugin)
     {
-
-      if(use_gz_plugin)
+      // populate thrusters with names from gz Thruster plugins
+      auto root{model_xml.RootElement()};
+      for(auto gz = root->FirstChildElement("gazebo");
+          gz != nullptr;
+          gz = gz->NextSiblingElement("gazebo"))
       {
-        // populate thrusters with names from gz Thruster plugins
-        auto root{model_xml.RootElement()};
-        for(auto gz = root->FirstChildElement("gazebo");
-            gz != nullptr;
-            gz = gz->NextSiblingElement("gazebo"))
+        for(auto plugin = gz->FirstChildElement("plugin");
+            plugin != nullptr;
+            plugin = plugin->NextSiblingElement("plugin"))
         {
-          for(auto plugin = gz->FirstChildElement("plugin");
-              plugin != nullptr;
-              plugin = plugin->NextSiblingElement("plugin"))
+          const auto name{plugin->Attribute("name")};
+          if(std::string(name).find("systems::Thruster") != std::string::npos)
           {
-            const auto name{plugin->Attribute("name")};
-            if(std::string(name).find("systems::Thruster") != std::string::npos)
-            {
-              auto joint{plugin->FirstChildElement("joint_name")};
-              if(joint)
-                thrusters.push_back(joint->GetText());
-            }
+            auto joint{plugin->FirstChildElement("joint_name")};
+            if(joint)
+              thrusters.push_back(joint->GetText());
           }
         }
       }
-
-      std::copy_if(model.joints_.begin(), model.joints_.end(), std::back_inserter(joints),
-                   [&](const auto &joint)
-      {
-        if(std::find(thrusters.begin(), thrusters.end(), joint.first) != thrusters.end())
-          return true;
-        if(thruster_prefix.empty())
-          return false;
-        return joint.first.find(thruster_prefix) == 0;});
     }
+
+    std::copy_if(model.joints_.begin(), model.joints_.end(), std::back_inserter(joints),
+                 [&](const auto &joint)
+    {
+      if(std::find(thrusters.begin(), thrusters.end(), joint.first) != thrusters.end())
+        return true;
+      if(thruster_prefix.empty())
+        return false;
+      return joint.first.find(thruster_prefix) == 0;});
 
     return joints;
   }
 
-
-
+  static inline ThrusterLink thrusterLink(urdf::JointSharedPtr joint)
+  {
+    return ThrusterLink(joint->child_link_name, joint->axis.x, joint->axis.y, joint->axis.z);
+  }
 
   Vector6d thrusterMapping(urdf::JointSharedPtr joint)
   {
@@ -124,7 +123,8 @@ struct ModelParser
     KDL::Frame thruster;
     solver.JntToCart(KDL::JntArray(n), thruster);
 
-    // to Eigen types
+    Eigen::Matrix<double, 6, 1> col;
+    // convert thruster pose to mapping through Eigen types
     Eigen::Vector3d p;
     Eigen::Matrix3d R;
     for(uint i = 0; i < 3; ++i)
@@ -132,18 +132,11 @@ struct ModelParser
     for(uint i = 0; i < 9; ++i)
       R(i/3,i%3) = thruster.M.data[i];
 
-    Eigen::Vector3d axis;
-    axis << joint->axis.x, joint->axis.y, joint->axis.z;
-
-    // build map column
-    Vector6d col;
-    col.head<3>() = R*axis;
+    col.head<3>() = R*Eigen::Vector3d(joint->axis.x, joint->axis.y, joint->axis.z);
     col.tail<3>() = p.cross(col.head<3>());
     return col;
   }
 };
-
-
 
 }
 

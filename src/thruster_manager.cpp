@@ -1,9 +1,8 @@
 #include <thruster_manager/thruster_manager.h>
-#include "model_parser.h"
+#include <thruster_manager/model_parser.h>
 
 using namespace thruster_manager;
 using namespace std;
-
 
 std::vector<std::string> ThrusterManager::parseRobotDescription(rclcpp::Node* node,
                                                                 const string &control_frame)
@@ -12,6 +11,7 @@ std::vector<std::string> ThrusterManager::parseRobotDescription(rclcpp::Node* no
   const auto thrusters = node->declare_parameter<vector<string>>("tam.thrusters",vector<string>{});
   const auto thruster_prefix = node->declare_parameter<string>("tam.thruster_prefix", "");
   const auto use_gz = node->declare_parameter("tam.use_gz_plugin", true);
+  const auto pub_wrenches = node->declare_parameter("tam.publish_thrusts", true);
 
   setThrusterLimits(node->declare_parameter("tam.min_thrust", 0.),
                     node->declare_parameter("tam.max_thrust", 0.),
@@ -21,7 +21,8 @@ std::vector<std::string> ThrusterManager::parseRobotDescription(rclcpp::Node* no
                                control_frame,
                                thrusters,
                                thruster_prefix,
-                               use_gz);
+                               use_gz,
+                               pub_wrenches);
 }
 
 void ThrusterManager::computeKernel()
@@ -50,7 +51,8 @@ std::vector<std::string> ThrusterManager::parseRobotDescription(rclcpp::Node* no
                                                                 const std::string &control_frame,
                                                                 const std::vector<std::string> &thrusters,
                                                                 const std::string &thruster_prefix,
-                                                                bool use_gz_plugin)
+                                                                bool use_gz_plugin,
+                                                                bool publish_wrenches)
 {
   assert (node != nullptr);
   const auto &logger{node->get_logger()};
@@ -78,13 +80,20 @@ std::vector<std::string> ThrusterManager::parseRobotDescription(rclcpp::Node* no
   dofs = joints.size();
   tam.resize(6, dofs);
 
-  std::vector<std::string> names;
+  std::vector<std::string> names;  
   uint col{0};
   for(const auto &[name,joint]: joints)
   {
     RCLCPP_INFO(logger, "Found thruster %s", name.c_str());
     names.push_back(name);
     tam.col(col++) = model.thrusterMapping(joint);
+
+    if(publish_wrenches)
+    {
+      wrench_links.push_back(model.thrusterLink(joint));
+      const auto &link{wrench_links.back()};
+      wrench_pub.push_back(node->create_publisher<WrenchStamped>(link.topicName(), 10));
+    }
   }
 
   computeKernel();
@@ -107,10 +116,11 @@ ThrusterManager::Vector6d ThrusterManager::maxWrench() const
 }
 
 
-Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
+Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench, const rclcpp::Time &now)
 {
-  static const auto qr{tam.colPivHouseholderQr()};
-  Eigen::VectorXd thrust{qr.solve(wrench)};
+  static const auto tamInv{tam.completeOrthogonalDecomposition().pseudoInverse()};
+  Eigen::VectorXd thrust{tamInv*wrench};
+
   if(const auto scale{scaleFactor(thrust)}; scale > 1)
     thrust /= scale;
 
@@ -152,6 +162,20 @@ Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
       }
     }
     prev_thrust = thrust;
+  }
+
+
+  if(!wrench_pub.empty())
+  {
+    WrenchStamped wrench;
+    wrench.header.stamp = now;
+    size_t idx{0};
+    for(const auto &link: wrench_links)
+    {
+      link.write(wrench, thrust(idx));
+      wrench_pub[idx]->publish(wrench);
+      idx++;
+    }
   }
 
   return thrust;

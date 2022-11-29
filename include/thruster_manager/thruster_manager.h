@@ -2,6 +2,8 @@
 #define THRUSTER_MANAGER_THRUSTER_MANAGER_H
 
 #include <rclcpp/node.hpp>
+#include <geometry_msgs/msg/wrench_stamped.hpp>
+#include <thruster_manager/thruster_link.h>
 #include <Eigen/Core>
 
 namespace thruster_manager
@@ -11,6 +13,7 @@ class ThrusterManager
 {
 public:
   using Vector6d = Eigen::Matrix<double, 6, 1>;
+  using WrenchStamped = geometry_msgs::msg::WrenchStamped;
 
   ThrusterManager() {};
 
@@ -34,9 +37,9 @@ public:
                              const std::string &control_frame,
                              const std::vector<std::string> &thrusters,
                              const std::string &thruster_prefix,
-                             bool use_gz_plugin);
+                             bool use_gz_plugin, bool publish_wrenches);
 
-  Eigen::VectorXd solveWrench(const Vector6d &wrench);
+  Eigen::VectorXd solveWrench(const Vector6d &wrench, const rclcpp::Time &now = rclcpp::Time{});
 
   // compute the max components of the wrench, assuming min/max thrust are non-0
   // useful for anti-windup in higher-level control
@@ -69,6 +72,10 @@ private:
 #endif
     return scale;
   }
+
+  // if we also publish wrenches for the joints
+  std::vector<rclcpp::Publisher<WrenchStamped>::SharedPtr> wrench_pub;
+  std::vector<ThrusterLink> wrench_links;
 
   // kernel info
   std::vector<uint> kernel_thrusters;
