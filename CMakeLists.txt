@@ -5,8 +5,6 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-set(CMAKE_BUILD_TYPE Release)
-
 # find dependencies
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
@@ -29,6 +27,11 @@ add_library(thruster_manager SHARED src/thruster_manager.cpp src/thruster_manage
 target_include_directories(thruster_manager PUBLIC include ${EIGEN3_INCLUDE_DIRS})
 ament_target_dependencies(thruster_manager rclcpp urdf tf2_ros sensor_msgs geometry_msgs kdl_parser rclcpp_components)
 
+# rviz_bridge to display thruster wrenches
+add_executable(publish_wrenches src/publish_wrenches.cpp)
+target_include_directories(publish_wrenches PUBLIC include ${EIGEN3_INCLUDE_DIRS})
+target_link_libraries(publish_wrenches thruster_manager)
+
 if(NOT WIN32)
   ament_environment_hooks(
     "${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY_PATH}"
@@ -40,7 +43,7 @@ rclcpp_components_register_node(thruster_manager
   PLUGIN "thruster_manager::ThrusterManagerNode"
   EXECUTABLE thruster_manager_node)
 
-install(TARGETS thruster_manager
+install(TARGETS thruster_manager publish_wrenches
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
   RUNTIME DESTINATION lib/${PROJECT_NAME})

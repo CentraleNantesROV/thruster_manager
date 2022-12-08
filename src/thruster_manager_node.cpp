@@ -21,7 +21,8 @@ ThrusterManagerNode::ThrusterManagerNode(rclcpp::NodeOptions options)
   const auto control_frame{declare_parameter<std::string>("control_frame", "base_link")};
 
   // joint names are stored here anyway to sync joint names and indices
-  cmd.name = allocator.parseRobotDescription(this, control_frame);
+  const auto links{allocator.parseRobotDescription(this, control_frame)};
+  std::transform(links.begin(), links.end(), std::back_inserter(cmd.name), [](const auto &link){return link.joint;});
   dofs = cmd.name.size();
   cmd.effort.resize(dofs);
 

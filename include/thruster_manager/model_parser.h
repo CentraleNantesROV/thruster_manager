@@ -108,7 +108,7 @@ struct ModelParser
 
   static inline ThrusterLink thrusterLink(urdf::JointSharedPtr joint)
   {
-    return ThrusterLink(joint->child_link_name, joint->axis.x, joint->axis.y, joint->axis.z);
+    return ThrusterLink(joint->child_link_name, joint->name, joint->axis.x, joint->axis.y, joint->axis.z);
   }
 
   Vector6d thrusterMapping(urdf::JointSharedPtr joint)

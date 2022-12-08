@@ -11,10 +11,11 @@ namespace thruster_manager
 struct ThrusterLink
 {
   std::string frame;
+  std::string joint;
   double x{}, y{}, z{};
 
-  explicit ThrusterLink(const std::string &name, double x, double y, double z)
-    : frame{name}, x{x},y{y}, z{z}
+  explicit ThrusterLink(const std::string &frame, const std::string &joint, double x, double y, double z)
+    : frame{frame}, joint{joint}, x{x},y{y}, z{z}
   {  }
 
   void write(geometry_msgs::msg::WrenchStamped &wrench, double f) const

@@ -64,3 +64,8 @@ The two `parseRobotDescription` methods return the names of the thruster joints,
 The core method is `Eigen::VectorXd solveWrench(const Vector6d &wrench)` that finds the overall thruts (return value) from the desired wrench.
 
 Controllers can also use the `maxWrench()` function to use it in anti-windup approaches, if any. This method returns a `Eigen::Vector` of dimension 6 with the maximum wrench on all components : x, y, z, roll, pitch, yaw.
+
+
+## Publish_wrenches
+
+The `publish_wrenches` node will subscribe to thrusts published by a `ThrusterManager` instance and forward them as actual `Wrench` that can be displayed in RViz, if needed.

@@ -28,18 +28,18 @@ public:
     computeKernel();
   }
 
-  // reads the robot_description parameter and returns the thruster joints
+  /// reads the robot_description parameter and returns the thruster links (frames / joints / pose wrt control frame)
   // declares all parsing parameters in the given node
-  std::vector<std::string> parseRobotDescription(rclcpp::Node *node, const std::string &control_frame);
+  std::vector<ThrusterLink> parseRobotDescription(rclcpp::Node *node, const std::string &control_frame);
 
-  // reads the robot_description parameter and returns the thruster joints
-  std::vector<std::string> parseRobotDescription(rclcpp::Node *node,
+  /// reads the robot_description parameter and returns the thruster joints
+  std::vector<ThrusterLink> parseRobotDescription(rclcpp::Node *node,
                              const std::string &control_frame,
                              const std::vector<std::string> &thrusters,
                              const std::string &thruster_prefix,
-                             bool use_gz_plugin, bool publish_wrenches);
+                             bool use_gz_plugin);
 
-  Eigen::VectorXd solveWrench(const Vector6d &wrench, const rclcpp::Time &now = rclcpp::Time{});
+  Eigen::VectorXd solveWrench(const Vector6d &wrench);
 
   // compute the max components of the wrench, assuming min/max thrust are non-0
   // useful for anti-windup in higher-level control
@@ -72,10 +72,6 @@ private:
 #endif
     return scale;
   }
-
-  // if we also publish wrenches for the joints
-  std::vector<rclcpp::Publisher<WrenchStamped>::SharedPtr> wrench_pub;
-  std::vector<ThrusterLink> wrench_links;
 
   // kernel info
   std::vector<uint> kernel_thrusters;
