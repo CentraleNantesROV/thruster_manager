@@ -12,8 +12,8 @@ std::vector<ThrusterLink> ThrusterManager::parseRobotDescription(rclcpp::Node* n
   const auto thruster_prefix = node->declare_parameter<string>("tam.thruster_prefix", "");
   const auto use_gz = node->declare_parameter("tam.use_gz_plugin", true);
 
-  setThrusterLimits(node->declare_parameter("tam.min_thrust", 0.),
-                    node->declare_parameter("tam.max_thrust", 0.),
+  setThrusterLimits(node->declare_parameter("tam.min_thrust", -40.),
+                    node->declare_parameter("tam.max_thrust", 40.),
                     node->declare_parameter("tam.deadzone", 0.));
 
   return parseRobotDescription(node,
@@ -106,13 +106,20 @@ ThrusterManager::Vector6d ThrusterManager::maxWrench() const
 }
 
 
-Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
+Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench, Limits limits)
 {
   static const auto tamInv{tam.completeOrthogonalDecomposition().pseudoInverse()};
   Eigen::VectorXd thrust{tamInv*wrench};
 
+  if(limits == Limits::SCALE)
+  {
   if(const auto scale{scaleFactor(thrust)}; scale > 1)
     thrust /= scale;
+  }
+  else if(limits == Limits::SATURATE)
+  {
+    saturate(thrust);
+  }
 
   if(!kernel_thrusters.empty())
   {

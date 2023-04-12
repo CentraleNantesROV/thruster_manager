@@ -24,7 +24,8 @@ struct ModelParser
 
   ModelParser(const std::string &control_frame) : control_frame{control_frame}
   {
-    const auto rsp_node(std::make_shared<rclcpp::Node>("thruster_manager_rsp"));
+    // use a unique node name for this node, only used to get the robot_description
+    const auto rsp_node(std::make_shared<rclcpp::Node>("thruster_manager_rsp_" + std::to_string(getpid())));
 
     const auto rsp_param_srv = std::make_shared<rclcpp::SyncParametersClient>
         (rsp_node, "robot_state_publisher");
@@ -45,6 +46,7 @@ struct ModelParser
     // remove base link inertia to disable KDL warning
     model.root_link_->inertial.reset();
     kdl_parser::treeFromUrdfModel(model, tree);
+
   }
 
   inline bool valid() const

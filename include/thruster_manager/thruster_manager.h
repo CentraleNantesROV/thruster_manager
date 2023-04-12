@@ -9,6 +9,8 @@
 namespace thruster_manager
 {
 
+enum class Limits{SCALE, SATURATE, IGNORE};
+
 class ThrusterManager
 {
 public:
@@ -39,7 +41,7 @@ public:
                              const std::string &thruster_prefix,
                              bool use_gz_plugin);
 
-  Eigen::VectorXd solveWrench(const Vector6d &wrench);
+  Eigen::VectorXd solveWrench(const Vector6d &wrench, Limits limits = Limits::SCALE);
 
   // compute the max components of the wrench, assuming min/max thrust are non-0
   // useful for anti-windup in higher-level control
@@ -53,6 +55,23 @@ private:
 
   // thruster constraints
   double fmin{0}, fmax{0}, deadzone{0};
+
+  inline void saturate(Eigen::VectorXd &thrust) const
+  {
+    if(fmin == 0 || fmax == 0)
+      return;
+
+#if EIGEN_VERSION_AT_LEAST(3,4,0)
+    for(auto &thr: thrust)
+      thr = std::clamp(thr, fmin, fmax);
+#else
+    for(uint t = 0; t < dofs; ++t)
+    {
+      auto &thr{thrust(t)};
+      thr = std::clamp(thr, fmin, fmax);
+    }
+#endif
+  }
 
   inline double scaleFactor(const Eigen::VectorXd &thrust) const
   {
