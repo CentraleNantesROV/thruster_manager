@@ -69,7 +69,7 @@ void ThrusterManagerNode::solve(const Wrench &wrench)
 
   if(cmd_js_pub)
   {
-    std::copy(F.data(), F.data()+dofs, cmd.effort.begin());
+    std::copy(thrusts.data(), thrusts.data()+dofs, cmd.effort.begin());
     cmd.header.stamp = get_clock()->now();
     cmd_js_pub->publish(cmd);
   }
