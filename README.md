@@ -44,7 +44,7 @@ If the deadzone is given *and* the allocation matrix has a non-null kernel then 
 
 ### Input / output (ThrusterManagerNode only)
 
-- `publish_joint_state` (default `true`): will publish the output as a `JointState` message on `cmd_thrust`. Only the `position` and `effort` fields are used.
+- `publish_joint_state` (default `true`): will publish the output as a `JointState` message on `cmd_thrust`. Only the `effort` field is used.
 - `publish_gz_command` (default `false`): will publish the output as several `Float64` messages on each `cmd_<thruster_name>` topics. This is the expected behavior for Gazebo thrust plugin.
 - `subscribe_stamped` (default `false`): will expect `WrenchStamped` messages intead of `Wrench`, in any case the node will subscribe to the `wrench` topic.
 
