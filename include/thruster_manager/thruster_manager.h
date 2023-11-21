@@ -2,6 +2,7 @@
 #define THRUSTER_MANAGER_THRUSTER_MANAGER_H
 
 #include <rclcpp/node.hpp>
+#include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <geometry_msgs/msg/wrench_stamped.hpp>
 #include <thruster_manager/thruster_link.h>
 #include <Eigen/Core>
@@ -31,15 +32,49 @@ public:
   }
 
   /// reads the robot_description parameter and returns the thruster links (frames / joints / pose wrt control frame)
-  // declares all parsing parameters in the given node
-  std::vector<ThrusterLink> parseRobotDescription(rclcpp::Node *node, const std::string &control_frame);
+  /// declares all parsing parameters in the given node
+  template <class Node>
+  std::vector<ThrusterLink> parseRobotDescription(Node *node, const std::string &control_frame)
+  {
+   /* static_assert (
+    std::is_same_v<Node, rclcpp::Node> || std::is_same_v<Node, rclcpp_lifecycle::LifecycleNode>,
+        "ThrusterManager::parseRobotDescription: Node should be rclcpp::Node or rclcpp_lifecycle::LifecycleNode");*/
+
+    assert (node != nullptr);
+
+    const auto thrusters = node->declare_parameter<std::vector<std::string>>("tam.thrusters",std::vector<std::string>{});
+    const auto thruster_prefix = node->declare_parameter template <std::string>("tam.thruster_prefix", "");
+    const auto use_gz =  node template->declare_parameter("tam.use_gz_plugin", true);
+
+    setThrusterLimits(node->declare_parameter("tam.min_thrust", -40.),
+                      node->declare_parameter("tam.max_thrust", 40.),
+                      node->declare_parameter("tam.deadzone", 0.));
+
+    const auto links{parseRobotDescription(node,
+                                           control_frame,
+                                           thrusters,
+                                           thruster_prefix,
+                                           use_gz)};
+
+    // write actual thrusters as param
+    // to be robust to empty vector<string> when dumping the parameters
+    if(thrusters.empty() && node->has_parameter("tam.thrusters"))
+    {
+      std::vector<std::string> names;
+      std::transform(links.begin(), links.end(), std::back_inserter(names), [](const ThrusterLink &link)
+      {return link.joint;});
+      node->set_parameter({"tam.thrusters", names});
+    }
+
+    return links;
+  }
 
   /// reads the robot_description parameter and returns the thruster joints
   std::vector<ThrusterLink> parseRobotDescription(rclcpp::Node *node,
-                             const std::string &control_frame,
-                             const std::vector<std::string> &thrusters,
-                             const std::string &thruster_prefix,
-                             bool use_gz_plugin);
+                                                  const std::string &control_frame,
+                                                  const std::vector<std::string> &thrusters,
+                                                  const std::string &thruster_prefix,
+                                                  bool use_gz_plugin);
 
   Eigen::VectorXd solveWrench(const Vector6d &wrench, Limits limits = Limits::SCALE);
 

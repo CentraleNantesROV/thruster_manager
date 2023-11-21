@@ -14,6 +14,7 @@ find_package(tf2_ros REQUIRED)
 find_package(urdf REQUIRED)
 find_package(kdl_parser REQUIRED)
 find_package(Eigen3 REQUIRED)
+find_package(rclcpp_lifecycle REQUIRED)
 find_package(rclcpp_components REQUIRED)
 
 # Default to C++17
@@ -25,7 +26,7 @@ endif()
 # thruster manager as a library / composition node
 add_library(thruster_manager SHARED src/thruster_manager.cpp src/thruster_manager_node.cpp)
 target_include_directories(thruster_manager PUBLIC include ${EIGEN3_INCLUDE_DIRS})
-ament_target_dependencies(thruster_manager rclcpp urdf tf2_ros sensor_msgs geometry_msgs kdl_parser rclcpp_components)
+ament_target_dependencies(thruster_manager rclcpp rclcpp_lifecycle urdf tf2_ros sensor_msgs geometry_msgs kdl_parser rclcpp_components)
 
 # rviz_bridge to display thruster wrenches
 add_executable(publish_wrenches src/publish_wrenches.cpp)

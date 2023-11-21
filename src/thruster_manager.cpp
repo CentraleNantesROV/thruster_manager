@@ -4,25 +4,6 @@
 using namespace thruster_manager;
 using namespace std;
 
-std::vector<ThrusterLink> ThrusterManager::parseRobotDescription(rclcpp::Node* node,
-                                                                const string &control_frame)
-{
-  assert (node != nullptr);
-  const auto thrusters = node->declare_parameter<vector<string>>("tam.thrusters",vector<string>{});
-  const auto thruster_prefix = node->declare_parameter<string>("tam.thruster_prefix", "");
-  const auto use_gz = node->declare_parameter("tam.use_gz_plugin", true);
-
-  setThrusterLimits(node->declare_parameter("tam.min_thrust", -40.),
-                    node->declare_parameter("tam.max_thrust", 40.),
-                    node->declare_parameter("tam.deadzone", 0.));
-
-  return parseRobotDescription(node,
-                               control_frame,
-                               thrusters,
-                               thruster_prefix,
-                               use_gz);
-}
-
 void ThrusterManager::computeKernel()
 {
   if(deadzone > 0 && dofs > 0)
@@ -46,10 +27,10 @@ void ThrusterManager::computeKernel()
 }
 
 std::vector<ThrusterLink> ThrusterManager::parseRobotDescription(rclcpp::Node* node,
-                                                                const std::string &control_frame,
-                                                                const std::vector<std::string> &thrusters,
-                                                                const std::string &thruster_prefix,
-                                                                bool use_gz_plugin)
+                                                                 const std::string &control_frame,
+                                                                 const std::vector<std::string> &thrusters,
+                                                                 const std::string &thruster_prefix,
+                                                                 bool use_gz_plugin)
 {
   assert (node != nullptr);
   const auto &logger{node->get_logger()};
@@ -82,7 +63,7 @@ std::vector<ThrusterLink> ThrusterManager::parseRobotDescription(rclcpp::Node* n
   for(const auto &[name,joint]: joints)
   {
     RCLCPP_INFO(logger, "Found thruster %s", name.c_str());
-    tam.col(col++) = model.thrusterMapping(joint);    
+    tam.col(col++) = model.thrusterMapping(joint);
     links.push_back(model.thrusterLink(joint));
   }
 
@@ -108,13 +89,13 @@ ThrusterManager::Vector6d ThrusterManager::maxWrench() const
 
 Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench, Limits limits)
 {
-  static const auto tamInv{tam.completeOrthogonalDecomposition().pseudoInverse()};
+  static const Eigen::MatrixXd tamInv{tam.completeOrthogonalDecomposition().pseudoInverse()};
   Eigen::VectorXd thrust{tamInv*wrench};
 
   if(limits == Limits::SCALE)
   {
-  if(const auto scale{scaleFactor(thrust)}; scale > 1)
-    thrust /= scale;
+    if(const auto scale{scaleFactor(thrust)}; scale > 1)
+      thrust /= scale;
   }
   else if(limits == Limits::SATURATE)
   {
