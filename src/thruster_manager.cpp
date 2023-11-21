@@ -26,15 +26,12 @@ void ThrusterManager::computeKernel()
   }
 }
 
-std::vector<ThrusterLink> ThrusterManager::parseRobotDescription(rclcpp::Node* node,
+std::vector<ThrusterLink> ThrusterManager::parseRobotDescription(const rclcpp::Logger &logger,
                                                                  const std::string &control_frame,
                                                                  const std::vector<std::string> &thrusters,
                                                                  const std::string &thruster_prefix,
                                                                  bool use_gz_plugin)
 {
-  assert (node != nullptr);
-  const auto &logger{node->get_logger()};
-
   auto model{ModelParser(control_frame)};
   if(!model.valid())
     return {};

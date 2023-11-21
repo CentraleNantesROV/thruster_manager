@@ -56,5 +56,6 @@ install(DIRECTORY include/ DESTINATION include/${PROJECT_NAME})
 
 ament_export_libraries(thruster_manager)
 ament_export_include_directories(include)
+ament_export_dependencies(rclcpp_lifecycle rclcpp_components)
 
 ament_package()
