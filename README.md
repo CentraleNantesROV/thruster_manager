@@ -44,7 +44,8 @@ If the deadzone is given *and* the allocation matrix has a non-null kernel then 
 
 This behavior is illustrated in the figure below where a BlueROV2 is standing still while its 4 horizontal thrusters apply non-null forces.
 
-<img src="image/kernel.png)" alt="kernel width="200"/>
+
+<img src="image/kernel.png" alt="kernel width="200"/>
 
 ### Input / output (ThrusterManagerNode only)
 
