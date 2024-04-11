@@ -1,4 +1,4 @@
-## A thruster manager package for underwater vehicles
+# A thruster manager package for underwater vehicles
 
 This packages instanciates a thruster manager node that maps desired wrench to propeller thrusts for a given vehicle model. It relies on Eigen for the linear algebra computation.
 
@@ -41,6 +41,10 @@ These constraints assume all thrusters have the same properties
 If both `min` and `max` thrusts are given then the overall thrusts are scaled down to fit in the constraints.
 
 If the deadzone is given *and* the allocation matrix has a non-null kernel then a basic iterative algorithm will try to apply the desired wrench while avoiding thrusts between `[-deadzone, +deadzone]`.
+
+This behavior is illustrated in the figure below where a BlueROV2 is standing still while its 4 horizontal thrusters apply non-null forces.
+
+<img src="image/kernel.png)" alt="kernel width="200"/>
 
 ### Input / output (ThrusterManagerNode only)
 
