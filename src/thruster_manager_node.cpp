@@ -40,14 +40,14 @@ ThrusterManagerNode::ThrusterManagerNode(rclcpp::NodeOptions options)
 
   if(sub_stamped)
   {
-    wrench_sub = create_subscription<WrenchStamped>("wrench", 5, [&](const WrenchStamped::SharedPtr msg)
+    wrench_sub = create_subscription<WrenchStamped>("wrench", 5, [&](const WrenchStamped::ConstSharedPtr msg)
     {
       solve(msg->wrench);
     });
   }
   else
   {
-    wrench_sub = create_subscription<Wrench>("wrench", 5, [&](const Wrench::SharedPtr msg)
+    wrench_sub = create_subscription<Wrench>("wrench", 5, [&](const Wrench::ConstSharedPtr msg)
     {
       solve(*msg);
     });

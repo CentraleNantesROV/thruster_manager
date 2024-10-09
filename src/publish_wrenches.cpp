@@ -38,13 +38,13 @@ public:
     {
       for(size_t thr=0; thr<dofs; ++thr)
       {
-        cmd_gz_sub.push_back(create_subscription<Float64>("cmd_" + links[thr].joint, 10, [=](Float64::SharedPtr thrust)
+        cmd_gz_sub.push_back(create_subscription<Float64>("cmd_" + links[thr].joint, 10, [=](Float64::ConstSharedPtr thrust)
         {thrusts[thr] = thrust->data;}));
       }
     }
     else
     {
-      cmd_js_sub = create_subscription<JointState>("cmd_thrust", 10, [&](JointState::SharedPtr js){parseJS(js);});
+      cmd_js_sub = create_subscription<JointState>("cmd_thrust", 10, [&](JointState::ConstSharedPtr js){parseJS(*js);});
     }
 
 
@@ -73,14 +73,14 @@ public:
   WrenchStamped wrench;
   std::vector<rclcpp::Publisher<WrenchStamped>::SharedPtr> wrench_pub;
 
-  void parseJS(const JointState::SharedPtr &js)
+  void parseJS(const JointState &js)
   {
     size_t idx{};
-    for(const auto &name: js->name)
+    for(const auto &name: js.name)
     {
       const auto link{std::find_if(links.begin(), links.end(), [&](const auto &link){return link.joint == name;})};
       if(link != links.end())
-        thrusts[std::distance(links.begin(), link)] = js->effort[idx];
+        thrusts[std::distance(links.begin(), link)] = js.effort[idx];
       idx++;
     }
   }

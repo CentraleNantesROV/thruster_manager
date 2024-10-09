@@ -20,6 +20,7 @@ find_package(rclcpp_components REQUIRED)
 # Default to C++17
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
+  set(CMAKE_CXX_STANDARD_REQUIRED ON)
 endif()
 
 
@@ -33,11 +34,11 @@ add_executable(publish_wrenches src/publish_wrenches.cpp)
 target_include_directories(publish_wrenches PUBLIC include ${EIGEN3_INCLUDE_DIRS})
 target_link_libraries(publish_wrenches thruster_manager)
 
-if(NOT WIN32)
-  ament_environment_hooks(
-    "${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY_PATH}"
-    )
-endif()
+#if(NOT WIN32)
+  #ament_environment_hooks(
+    #"${ament_cmake_package_templates_ENVIRONMENT_HOOK_LIBRARY_PATH}"
+    #)
+#endif()
 
 # auto-executable from node
 rclcpp_components_register_node(thruster_manager
