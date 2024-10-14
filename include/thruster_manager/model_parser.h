@@ -25,7 +25,14 @@ struct ModelParser
   ModelParser(const std::string &control_frame) : control_frame{control_frame}
   {
     // use a unique node name for this node, only used to get the robot_description
-    const auto rsp_node(std::make_shared<rclcpp::Node>("thruster_manager_rsp_" + control_frame));
+    std::string frame_name;
+    for(auto c: control_frame)
+    {
+      if(isalnum(c))
+        frame_name += c;
+    }
+
+    const auto rsp_node(std::make_shared<rclcpp::Node>("thruster_manager_rsp_" + frame_name));
 
     const auto rsp_param_srv = std::make_shared<rclcpp::SyncParametersClient>
         (rsp_node, "robot_state_publisher");
