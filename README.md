@@ -40,7 +40,9 @@ These constraints assume all thrusters have the same properties
 
 If both `min` and `max` thrusts are given then the overall thrusts are scaled down to fit in the constraints.
 
-If the deadzone is given *and* the allocation matrix has a non-null kernel then a basic iterative algorithm will try to apply the desired wrench while avoiding thrusts between `[-deadzone, +deadzone]`.
+If the deadzone is given *and* the allocation matrix has a non-null kernel then a basic iterative algorithm will try to apply the desired wrench while avoiding thrusts between `[-deadzone, +deadzone]`, according to the following article:
+
+`Ropars, Benoit, et al. "Thruster's dead-zones compensation for the actuation system of an underwater vehicle." 2015 European Control Conference (ECC). IEEE, 2015.`.
 
 This behavior is illustrated in the figure below where a BlueROV2 is standing still while its 4 horizontal thrusters apply non-null forces.
 
@@ -59,6 +61,7 @@ This behavior is illustrated in the figure below where a BlueROV2 is standing st
 The `ThrusterManager` class can be used as-is outside the package, typically from a control node that computes some desired wrench and directly solves the allocation without relying on the external `ThrusterManagerNode`.
 
 The class required no parameters to be instanciated. Then, two functions may be used to initialize the allocation matrix:
+
 - `parseRobotDescription(rclcpp::Node *node, const std::string &control_frame)`
     - declares all `tam.*` parameters for the given `*node`
 - `std::vector<std::string> parseRobotDescription(rclcpp::Node *node, const std::string &control_frame, const std::vector<std::string> &thrusters, const std::string &thruster_prefix, bool use_gz_plugin)`

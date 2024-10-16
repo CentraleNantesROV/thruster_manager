@@ -10,8 +10,6 @@
 namespace thruster_manager
 {
 
-enum class Limits{SCALE, SATURATE, IGNORE};
-
 class ThrusterManager
 {
 public:
@@ -88,7 +86,7 @@ public:
                                  use_gz_plugin);
   }
 
-  Eigen::VectorXd solveWrench(const Vector6d &wrench, Limits limits = Limits::SCALE);
+  Eigen::VectorXd solveWrench(const Vector6d &wrench);
 
   // compute the max components of the wrench, assuming min/max thrust are non-0
   // useful for anti-windup in higher-level control
@@ -101,55 +99,26 @@ private:
   Eigen::VectorXd prev_thrust;
 
   // thruster constraints
-  double fmin{0}, fmax{0}, deadzone{0};
+  double fmin{0}, fmax{0}, deadzone{0}, cont_weight{0.1};
 
-  inline void saturate(Eigen::VectorXd &thrust) const
-  {
-    if(fmin == 0 || fmax == 0)
-      return;
+  // scale this vector to [fmin,fmax]
+  inline void scale(Eigen::VectorXd &thrust) const;
 
-#if EIGEN_VERSION_AT_LEAST(3,4,0)
-    for(auto &thr: thrust)
-      thr = std::clamp(thr, fmin, fmax);
-#else
-    for(uint t = 0; t < dofs; ++t)
-    {
-      auto &thr{thrust(t)};
-      thr = std::clamp(thr, fmin, fmax);
-    }
-#endif
-  }
-
-  inline double scaleFactor(const Eigen::VectorXd &thrust) const
-  {
-    auto scale{1.};
-    if(fmin == 0 || fmax == 0)
-      return scale;
-
-#if EIGEN_VERSION_AT_LEAST(3,4,0)
-    for(auto &thr: thrust)
-      scale = std::max(scale, thr > 0 ? thr/fmax : thr/fmin);
-#else
-    for(uint t = 0; t < dofs; ++t)
-    {
-      auto &thr{thrust(t)};
-      scale = std::max(scale, thr > 0 ? thr/fmax : thr/fmin);
-    }
-#endif
-    return scale;
-  }
+  // scale this vector to [fmin,fmax] without changing value @ idx
+  void scale(Eigen::VectorXd &thrust, size_t idx) const;
 
   // kernel info
   std::vector<uint> kernel_thrusters;
-  Eigen::MatrixXd Z;
+  Eigen::VectorXd Z;
+
 
   void computeKernel();
 
-  inline uint countValid(const Eigen::VectorXd &thrust)
+  inline bool insideDeadzone(const Eigen::VectorXd &thrust) const
   {
-    return std::count_if(kernel_thrusters.begin(),
-                         kernel_thrusters.end(),
-                         [&](uint t){return std::abs(thrust(t)) >= deadzone - 1e-6;});
+    return std::any_of(kernel_thrusters.begin(),
+                       kernel_thrusters.end(),
+                       [&](uint t){return std::abs(thrust(t)) < deadzone - 1e-4;});
   }
 
   // model parser
