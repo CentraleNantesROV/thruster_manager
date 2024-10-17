@@ -37,6 +37,7 @@ These constraints assume all thrusters have the same properties
 - `tam.min_thrust` (default 0.): minimum, negative thrust
 - `tam.max_thrust` (default 0.): maximum, positive thrust
 - `tam.deadzone` (default 0.): positive value to try and avoid in the allocation
+- `tam.continuity` (default 0.1): weight on sign continuity for thrusts, in case of vectored thrusters
 
 If both `min` and `max` thrusts are given then the overall thrusts are scaled down to fit in the constraints.
 

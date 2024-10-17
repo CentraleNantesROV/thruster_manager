@@ -47,6 +47,8 @@ public:
                       node->declare_parameter("tam.max_thrust", 40.),
                       node->declare_parameter("tam.deadzone", 0.));
 
+    cont_weight = node->declare_parameter("tam.continuity", .1);
+
     const auto links{parseRobotDescription(node,
                                            control_frame,
                                            thrusters,

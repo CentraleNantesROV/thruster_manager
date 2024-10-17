@@ -162,7 +162,6 @@ Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
   const auto scaled_wrench{tam * thrust};
 
   // try to play inside the kernel to avoid deadzones
-
   const auto computeCost = [&](const Eigen::VectorXd &thrust)
   {
     if(insideDeadzone(thrust))
@@ -170,26 +169,31 @@ Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
 
     const auto signs{thrust.cwiseProduct(prev_thrust)};
     return (scaled_wrench-tam*thrust).norm()
-            + cont_weight*std::count_if(kernel_thrusters.begin(), kernel_thrusters.end(),
-                                        [&](uint idx){return signs(idx) < 0;});
+        + cont_weight*std::count_if(kernel_thrusters.begin(), kernel_thrusters.end(),
+                                    [&](uint idx){return signs(idx) < 0;});
   };
 
   Eigen::VectorXd best;
   double best_cost{std::numeric_limits<double>::max()};
 
-  if(const auto cost{computeCost(thrust)}; cost < best_cost)
+  // test overall best thrust with opposed kernel
+  for(auto s: {1,-1})
   {
-    best = thrust;
-    best_cost = cost;
+    const auto ref{kernel_thrusters[0]};
+    Eigen::VectorXd candidate{thrust + Z*(s*thrust(ref)-thrust(ref))/Z(ref)};
+    if(const auto cost{computeCost(candidate)}; cost < best_cost)
+    {
+      best = candidate;
+      best_cost = cost;
+    }
   }
 
   for(auto ref: kernel_thrusters)
   {
-    const auto denom{Z(ref)};
     // force this @ +- deadzone
     for(auto d: {-deadzone, deadzone})
     {
-      Eigen::VectorXd candidate{thrust + Z*(d-thrust(ref))/denom};
+      Eigen::VectorXd candidate{thrust + Z*(d-thrust(ref))/Z(ref)};
       scale(candidate, ref);
 
       if(const auto cost{computeCost(candidate)}; cost < best_cost)
