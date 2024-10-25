@@ -104,10 +104,7 @@ private:
   double fmin{0}, fmax{0}, deadzone{0}, cont_weight{0.1};
 
   // scale this vector to [fmin,fmax]
-  inline void scale(Eigen::VectorXd &thrust) const;
-
-  // scale this vector to [fmin,fmax] without changing value @ idx
-  void scale(Eigen::VectorXd &thrust, size_t idx) const;
+  inline void scale(Eigen::VectorXd &thrust, bool ensure_deadzone = false) const;
 
   // kernel info
   std::vector<uint> kernel_thrusters;

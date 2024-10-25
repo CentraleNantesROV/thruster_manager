@@ -4,6 +4,11 @@
 using namespace thruster_manager;
 using namespace std;
 
+int sgn(double val)
+{
+  return (0. < val) - (val < 0.);
+}
+
 void ThrusterManager::computeKernel()
 {
   if(deadzone > 0 && dofs > 0)
@@ -88,7 +93,7 @@ ThrusterManager::Vector6d ThrusterManager::maxWrench() const
   return wrench;
 }
 
-inline void ThrusterManager::scale(Eigen::VectorXd &thrust) const
+inline void ThrusterManager::scale(Eigen::VectorXd &thrust, bool ensure_deadzone) const
 {
   auto scale{1.};
   if(fmin == 0 || fmax == 0)
@@ -106,38 +111,14 @@ inline void ThrusterManager::scale(Eigen::VectorXd &thrust) const
 #endif
   if(scale > 1.)
     thrust /= scale;
-}
-
-
-void ThrusterManager::scale(Eigen::VectorXd &thrust, size_t idx) const
-{
-
-  int max_idx{-1};
-  auto max_thr{0.};
-  for(uint t = 0; t < dofs; ++t)
+  if(ensure_deadzone)
   {
-    const auto ratio = thrust(t) > 0 ? thrust(t)/fmax : thrust(t)/fmin;
-    if(ratio > max_thr)
+    for(auto &t: thrust)
     {
-      max_thr = ratio;
-      max_idx = t;
+      if(std::abs(t) < deadzone)
+        t = sgn(t)*deadzone;
     }
   }
-  if(max_thr< 1. +1e-3)
-    return;
-
-  // thrust <- s*thrust + r*Z
-  // thrust[idx] inchanged
-  const auto t0{thrust(idx)};
-  const auto z0{Z(idx)};
-  // thrust[max_idx] saturated
-  const auto tm{thrust(max_idx)};
-  const auto zm{Z(max_idx)};
-  const auto m = tm > 0 ? fmax : fmin;
-  const auto det{1./(tm*z0-t0*zm)};
-  const auto s{det*(m*z0 - t0*zm)};
-  const auto r{det*(-m*t0 + t0*tm)};
-  thrust = s*thrust + r*Z;
 }
 
 Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
@@ -162,45 +143,37 @@ Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
   const auto scaled_wrench{tam * thrust};
 
   // try to play inside the kernel to avoid deadzones
-  const auto computeCost = [&](const Eigen::VectorXd &thrust)
-  {
-    if(insideDeadzone(thrust))
-      return std::numeric_limits<double>::max();
-
-    const auto signs{thrust.cwiseProduct(prev_thrust)};
-    return (scaled_wrench-tam*thrust).norm()
-        + cont_weight*std::count_if(kernel_thrusters.begin(), kernel_thrusters.end(),
-                                    [&](uint idx){return signs(idx) < 0;});
-  };
-
-  Eigen::VectorXd best;
+  Eigen::VectorXd best = thrust;
   double best_cost{std::numeric_limits<double>::max()};
 
-  // test overall best thrust with opposed kernel
-  for(auto s: {1,-1})
+  const auto checkCandidate = [&](Eigen::VectorXd thrust)
   {
-    const auto ref{kernel_thrusters[0]};
-    Eigen::VectorXd candidate{thrust + Z*(s*thrust(ref)-thrust(ref))/Z(ref)};
-    if(const auto cost{computeCost(candidate)}; cost < best_cost)
+    if(insideDeadzone(thrust))
+      return;
+
+    scale(thrust, true);
+
+    const auto signs{thrust.cwiseProduct(prev_thrust)};
+    const auto cost{(scaled_wrench-tam*thrust).norm()
+          + cont_weight*std::count_if(signs.begin(),signs.end(), [](auto s)
+      {return s < 0;})};
+    if(cost < best_cost)
     {
-      best = candidate;
       best_cost = cost;
+      best = thrust;
     }
-  }
+  };
 
-  for(auto ref: kernel_thrusters)
+  // consider base thrust
+  checkCandidate(thrust);
+
+  // all the deadzones we might want to use
+  for(auto t: kernel_thrusters)
   {
-    // force this @ +- deadzone
-    for(auto d: {-deadzone, deadzone})
+    for(auto s: {-1, 1})
     {
-      Eigen::VectorXd candidate{thrust + Z*(d-thrust(ref))/Z(ref)};
-      scale(candidate, ref);
-
-      if(const auto cost{computeCost(candidate)}; cost < best_cost)
-      {
-        best = candidate;
-        best_cost = cost;
-      }
+      const auto offset{(s*sgn(thrust(t))*deadzone - thrust(t))/Z(t)};
+      checkCandidate(thrust + offset*Z);
     }
   }
   return prev_thrust = best;
