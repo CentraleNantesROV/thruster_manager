@@ -168,9 +168,12 @@ Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
                     + cont_weight*std::count_if(signs.begin(),signs.end(), [](auto s)
                                                   {return s < 0;})};
 #else
-    const auto cost{(scaled_wrench-tam*thrust).norm()
-                    + cont_weight*std::count_if(signs.data(),signs.data()+signs.size(), [](auto s)
-                                                  {return s < 0;})};
+    auto cost{(scaled_wrench-tam*thrust).norm()};
+    for(uint idx = 0; idx < dofs; ++idx)
+    {
+      if(signs(idx) < 0)
+                cost += cont_weight;
+    }
 #endif
     if(cost < best_cost)
     {
