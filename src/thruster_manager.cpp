@@ -29,7 +29,7 @@ void ThrusterManager::computeKernel()
       {
         Z(t) = Zfull.row(t).sum();
         if((std::abs(tam(2,t)) <  1e-3)     // horizontal
-           && std::abs(Z(t)) > 1e-6)        // vectored
+            && std::abs(Z(t)) > 1e-6)        // vectored
           kernel_thrusters.push_back(t);
       }
     }
@@ -37,10 +37,10 @@ void ThrusterManager::computeKernel()
 }
 
 std::vector<ThrusterLink> ThrusterManager::parseRobotDescription(const rclcpp::Logger &logger,
-                                                                 const std::string &control_frame,
-                                                                 const std::vector<std::string> &thrusters,
-                                                                 const std::string &thruster_prefix,
-                                                                 bool use_gz_plugin)
+								 const std::string &control_frame,
+								 const std::vector<std::string> &thrusters,
+								 const std::string &thruster_prefix,
+								 bool use_gz_plugin)
 {
   auto model{ModelParser(control_frame)};
   if(!model.valid())
@@ -113,11 +113,20 @@ inline void ThrusterManager::scale(Eigen::VectorXd &thrust, bool ensure_deadzone
     thrust /= scale;
   if(ensure_deadzone)
   {
-    for(auto &t: thrust)
+#if EIGEN_VERSION_AT_LEAST(3,4,0)
+    for(auto &thr: thrust)
     {
-      if(std::abs(t) < deadzone)
-        t = sgn(t)*deadzone;
+      if(std::abs(thr) < deadzone)
+        thr = sgn(thr)*deadzone;
     }
+#else
+
+    for(uint idx = 0; idx < dofs; ++idx)
+    {
+      if(std::abs(thrust(idx)) < deadzone)
+        thrust(idx) = sgn(thrust(idx))*deadzone;
+    }
+#endif
   }
 }
 
@@ -154,9 +163,15 @@ Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
     scale(thrust, true);
 
     const auto signs{thrust.cwiseProduct(prev_thrust)};
+#if EIGEN_VERSION_AT_LEAST(3,4,0)
     const auto cost{(scaled_wrench-tam*thrust).norm()
-          + cont_weight*std::count_if(signs.begin(),signs.end(), [](auto s)
-      {return s < 0;})};
+                    + cont_weight*std::count_if(signs.begin(),signs.end(), [](auto s)
+                                                  {return s < 0;})};
+#else
+    const auto cost{(scaled_wrench-tam*thrust).norm()
+                    + cont_weight*std::count_if(signs.data(),signs.data()+signs.size(), [](auto s)
+                                                  {return s < 0;})};
+#endif
     if(cost < best_cost)
     {
       best_cost = cost;
