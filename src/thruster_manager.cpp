@@ -172,7 +172,7 @@ Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
     for(uint idx = 0; idx < dofs; ++idx)
     {
       if(signs(idx) < 0)
-                cost += cont_weight;
+        cost += cont_weight;
     }
 #endif
     if(cost < best_cost)
