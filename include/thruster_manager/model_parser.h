@@ -17,10 +17,24 @@ struct ModelParser
 {
   using Vector6d = Eigen::Matrix<double, 6, 1>;
 
+  static Vector6d getTAMColumn(const Eigen::Vector3d&p, const Eigen::Quaterniond &q,
+                               const Eigen::Vector3d &axis)
+  {
+    Vector6d col;
+    col.head<3>() = q*axis;
+    col.tail<3>() = p.cross(col.head<3>());
+    return col;
+  }
+
+  private:
+
   urdf::Model model;
   KDL::Tree tree;
   tinyxml2::XMLDocument model_xml;
   std::string control_frame;
+
+
+public:
 
   ModelParser(const std::string &control_frame) : control_frame{control_frame}
   {
@@ -132,18 +146,12 @@ struct ModelParser
     KDL::Frame thruster;
     solver.JntToCart(KDL::JntArray(n), thruster);
 
-    Eigen::Matrix<double, 6, 1> col;
     // convert thruster pose to mapping through Eigen types
-    Eigen::Vector3d p;
-    Eigen::Matrix3d R;
-    for(uint i = 0; i < 3; ++i)
-      p(i) = thruster.p[i];
-    for(uint i = 0; i < 9; ++i)
-      R(i/3,i%3) = thruster.M.data[i];
-
-    col.head<3>() = R*Eigen::Vector3d(joint->axis.x, joint->axis.y, joint->axis.z);
-    col.tail<3>() = p.cross(col.head<3>());
-    return col;
+    Eigen::Quaterniond q;
+    thruster.M.GetQuaternion(q.x(),q.y(),q.z(),q.w());
+    return getTAMColumn({thruster.p[0],thruster.p[1],thruster.p[2]},
+                        q,
+                        Eigen::Vector3d(joint->axis.x, joint->axis.y, joint->axis.z));
   }
 };
 

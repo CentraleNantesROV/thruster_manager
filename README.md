@@ -26,7 +26,8 @@ The mapping between body wrench and propeller thrust needs to identify which joi
 
 - `tam.thrusters` (`array[string]`): will use all the joint names listed in this parameter
 - `tam.thruster_prefix` (`string`): will use all joints that begins with the prefix
-- `tam.use_gz_plugin` (`bool`): will use all joints that have a `gazebo::systems::Thruster` plugin in the URDF
+- `tam.use_gz_plugin` (`bool`, default `True`)): will use all joints that have a `gazebo::systems::Thruster` plugin in the URDF
+- `tam.use_tf` (`bool`, default `False`): will recompute the allocation matrix from TF. This is useful for a ROV with steering thrusters
 
 If no hint is given (default) then the parser will assume all revolute and continuous joints of the model are thrusters.
 

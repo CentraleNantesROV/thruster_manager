@@ -11,36 +11,36 @@ int sgn(double val)
 
 void ThrusterManager::computeKernel()
 {
-  if(deadzone > 0 && dofs > 0)
+  if(use_tf() ||deadzone <= 0 || dofs == 0)
+    return;
+
+  // identify kernel dimension and thrusters belonging to the kernel, if any
+  Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(tam.transpose());
+  const auto Zfull{Eigen::MatrixXd(qr.matrixQ()).block(0, qr.rank(), dofs, dofs-qr.rank())};
+
+  prev_thrust.resize(dofs);
+  prev_thrust.setZero();
+
+  if(Zfull.cols() != 0)
   {
-    // identify kernel dimension and thrusters belonging to the kernel, if any
-    Eigen::ColPivHouseholderQR<Eigen::MatrixXd> qr(tam.transpose());
-    const auto Zfull{Eigen::MatrixXd(qr.matrixQ()).block(0, qr.rank(), dofs, dofs-qr.rank())};
-
-    prev_thrust.resize(dofs);
-    prev_thrust.setZero();
-
-    if(Zfull.cols() != 0)
+    // Kernel of dim. 1, limited to horizontal thrusters
+    Z.resize(dofs);
+    // register which horizontal thrusters may be played with in the kernel
+    for(uint t = 0; t < dofs; ++t)
     {
-      // Kernel of dim. 1, limited to horizontal thrusters
-      Z.resize(dofs);
-      // register which horizontal thrusters may be played with in the kernel
-      for(uint t = 0; t < dofs; ++t)
-      {
-        Z(t) = Zfull.row(t).sum();
-        if((std::abs(tam(2,t)) <  1e-3)     // horizontal
-            && std::abs(Z(t)) > 1e-6)        // vectored
-          kernel_thrusters.push_back(t);
-      }
+      Z(t) = Zfull.row(t).sum();
+      if((std::abs(tam(2,t)) <  1e-3)     // horizontal
+          && std::abs(Z(t)) > 1e-6)        // vectored
+        kernel_thrusters.push_back(t);
     }
   }
 }
 
 std::vector<ThrusterLink> ThrusterManager::parseRobotDescription(const rclcpp::Logger &logger,
-								 const std::string &control_frame,
-								 const std::vector<std::string> &thrusters,
-								 const std::string &thruster_prefix,
-								 bool use_gz_plugin)
+																 const std::string &control_frame,
+																 const std::vector<std::string> &thrusters,
+																 const std::string &thruster_prefix,
+																 bool use_gz_plugin)
 {
   auto model{ModelParser(control_frame)};
   if(!model.valid())
@@ -61,6 +61,8 @@ std::vector<ThrusterLink> ThrusterManager::parseRobotDescription(const rclcpp::L
     return {};
   }
 
+  this->control_frame = control_frame;
+
   // write transform into tam
   dofs = joints.size();
   tam.resize(6, dofs);
@@ -74,7 +76,10 @@ std::vector<ThrusterLink> ThrusterManager::parseRobotDescription(const rclcpp::L
     links.push_back(model.thrusterLink(joint));
   }
 
-  computeKernel();
+  if(use_tf())
+    tf_thrusters = links;
+  else
+    computeKernel();
 
   return links;
 }
@@ -84,6 +89,13 @@ ThrusterManager::Vector6d ThrusterManager::maxWrench() const
   Vector6d wrench;
   wrench.setZero();
   const auto thrust{std::max(fmax, -fmin)};
+
+  if(use_tf())
+  {
+    // no simple way to compute this, assume 2 thrusters per axis
+    wrench.setConstant(2*thrust);
+    return wrench;
+  }
 
   for(size_t dir = 0; dir < 6; ++dir)
   {
@@ -114,25 +126,50 @@ inline void ThrusterManager::scale(Eigen::VectorXd &thrust, bool ensure_deadzone
   if(ensure_deadzone)
   {
 #if EIGEN_VERSION_AT_LEAST(3,4,0)
-    for(auto &thr: thrust)
-    {
-      if(std::abs(thr) < deadzone)
-        thr = sgn(thr)*deadzone;
-    }
+	for(auto &thr: thrust)
+	{
+	  if(std::abs(thr) < deadzone)
+		thr = sgn(thr)*deadzone;
+	}
 #else
 
-    for(uint idx = 0; idx < dofs; ++idx)
-    {
-      if(std::abs(thrust(idx)) < deadzone)
-        thrust(idx) = sgn(thrust(idx))*deadzone;
-    }
+	for(uint idx = 0; idx < dofs; ++idx)
+	{
+	  if(std::abs(thrust(idx)) < deadzone)
+		thrust(idx) = sgn(thrust(idx))*deadzone;
+	}
 #endif
+  }
+}
+
+void ThrusterManager::updateTAM()
+{
+  if(!use_tf())
+    return;
+  uint col{0};
+  for(const auto &thr: tf_thrusters)
+  {
+    if(tf_buffer->canTransform(control_frame, thr.frame, tf2::TimePointZero))
+    {
+    const auto tf{tf_buffer->lookupTransform(control_frame, thr.frame, tf2::TimePointZero).transform};
+    tam.col(col) = ModelParser::getTAMColumn({tf.translation.x,tf.translation.y,tf.translation.z},
+                                               Eigen::Quaterniond(tf.rotation.w, tf.rotation.x,
+                                                                  tf.rotation.y, tf.rotation.z),
+                                               thr.axis);
+    }
+    col++;
   }
 }
 
 Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
 {
-  static const Eigen::MatrixXd tamInv{tam.completeOrthogonalDecomposition().pseudoInverse()};
+  static Eigen::MatrixXd tamInv{tam.completeOrthogonalDecomposition().pseudoInverse()};
+  if(use_tf())
+  {
+    updateTAM();
+    tamInv = tam.completeOrthogonalDecomposition().pseudoInverse();
+  }
+
   Eigen::VectorXd thrust{tamInv*wrench};
 
   if(fmin == 0 || fmax == 0)
@@ -164,22 +201,22 @@ Eigen::VectorXd ThrusterManager::solveWrench(const Vector6d &wrench)
 
     const auto signs{thrust.cwiseProduct(prev_thrust)};
 #if EIGEN_VERSION_AT_LEAST(3,4,0)
-    const auto cost{(scaled_wrench-tam*thrust).norm()
-                    + cont_weight*std::count_if(signs.begin(),signs.end(), [](auto s)
-                                                  {return s < 0;})};
+	const auto cost{(scaled_wrench-tam*thrust).norm()
+					+ cont_weight*std::count_if(signs.begin(),signs.end(), [](auto s)
+												  {return s < 0;})};
 #else
-    auto cost{(scaled_wrench-tam*thrust).norm()};
-    for(uint idx = 0; idx < dofs; ++idx)
-    {
-      if(signs(idx) < 0)
-        cost += cont_weight;
-    }
+	auto cost{(scaled_wrench-tam*thrust).norm()};
+	for(uint idx = 0; idx < dofs; ++idx)
+	{
+	  if(signs(idx) < 0)
+		cost += cont_weight;
+	}
 #endif
-    if(cost < best_cost)
-    {
-      best_cost = cost;
-      best = thrust;
-    }
+	if(cost < best_cost)
+	{
+	  best_cost = cost;
+	  best = thrust;
+	}
   };
 
   // consider base thrust

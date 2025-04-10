@@ -5,6 +5,8 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <geometry_msgs/msg/wrench_stamped.hpp>
 #include <thruster_manager/thruster_link.h>
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
 #include <Eigen/Core>
 
 namespace thruster_manager
@@ -17,6 +19,11 @@ public:
   using WrenchStamped = geometry_msgs::msg::WrenchStamped;
 
   ThrusterManager() {};
+
+  inline auto use_tf() const
+  {
+    return tf_buffer != nullptr;
+  }
 
   inline void setThrusterLimits(double fmin, double fmax, double deadzone)
   {
@@ -39,9 +46,12 @@ public:
         "ThrusterManager::parseRobotDescription: Node should be rclcpp::Node or rclcpp_lifecycle::LifecycleNode");
     assert (node != nullptr);
 
+    this->control_frame = control_frame;
+
     const auto thrusters = node->template declare_parameter<std::vector<std::string>>("tam.thrusters",std::vector<std::string>{});
     const auto thruster_prefix = node->template declare_parameter<std::string>("tam.thruster_prefix", "");
     const auto use_gz =  node->declare_parameter("tam.use_gz_plugin", true);
+    const auto use_tf = node->declare_parameter("tam.use_tf", false);
 
     setThrusterLimits(node->declare_parameter("tam.min_thrust", -40.),
                       node->declare_parameter("tam.max_thrust", 40.),
@@ -53,7 +63,8 @@ public:
                                            control_frame,
                                            thrusters,
                                            thruster_prefix,
-                                           use_gz)};
+                                           use_gz,
+                                           use_tf)};
 
     // write actual thrusters as param
     // to be robust to empty vector<string> when dumping the parameters
@@ -74,12 +85,19 @@ public:
                                                   const std::string &control_frame,
                                                   const std::vector<std::string> &thrusters,
                                                   const std::string &thruster_prefix,
-                                                  bool use_gz_plugin)
+                                                  bool use_gz_plugin,
+                                                  bool use_tf = false)
   {
     static_assert (
     std::is_base_of_v<rclcpp::Node, Node> || std::is_base_of_v<rclcpp_lifecycle::LifecycleNode, Node>,
         "ThrusterManager::parseRobotDescription: Node should be rclcpp::Node or rclcpp_lifecycle::LifecycleNode");
     assert (node != nullptr);
+
+	if(use_tf)
+	{
+	  tf_buffer = std::make_unique<tf2_ros::Buffer>(node->get_clock());
+	  tf_listener = std::make_unique<tf2_ros::TransformListener>(*tf_buffer, node);
+	}
 
     return parseRobotDescription(node->template get_logger(),
                                  control_frame,
@@ -109,16 +127,20 @@ private:
   // kernel info
   std::vector<uint> kernel_thrusters;
   Eigen::VectorXd Z;
-
-
   void computeKernel();
-
   inline bool insideDeadzone(const Eigen::VectorXd &thrust) const
   {
     return std::any_of(kernel_thrusters.begin(),
                        kernel_thrusters.end(),
                        [&](uint t){return std::abs(thrust(t)) < deadzone - 1e-4;});
   }
+
+  // TF listener if needed
+  std::string control_frame;
+  std::unique_ptr<tf2_ros::Buffer> tf_buffer;
+  std::unique_ptr<tf2_ros::TransformListener> tf_listener;
+  std::vector<ThrusterLink> tf_thrusters;
+  void updateTAM();
 
   // model parser
   std::vector<ThrusterLink> parseRobotDescription(const rclcpp::Logger &logger,
